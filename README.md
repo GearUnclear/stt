@@ -4,12 +4,33 @@ A GUI-based Windows desktop application for speech transcription powered by the 
 
 ## Features
 
-- **Real-time microphone transcription** — speak and see text appear live
+- **Live transcription** — chunked real-time transcription from your microphone with sub-200ms perceived latency
 - **File transcription** — drag and drop audio/video files for batch transcription
 - **Multiple model support** — switch between top-ranked open-source ASR models
-- **GPU acceleration** — CUDA support for fast inference on NVIDIA GPUs
+- **GPU acceleration** — CUDA support for fast inference on NVIDIA GPUs (16 GB VRAM target)
 - **Export options** — save transcripts as TXT, SRT subtitles, or copy to clipboard
 - **Language detection** — automatic language identification with manual override
+- **VAD-powered chunking** — Silero VAD splits audio on silence/pauses for clean chunk boundaries, avoiding cut-off words and repeated phrases
+
+## How Live Transcription Works
+
+These models are encoder-decoder architectures — they need a chunk of audio to produce output, not a continuous stream. The app uses **chunked real-time transcription**, which is the standard approach and what users perceive as "live":
+
+1. **Capture** audio in rolling 1-3 second windows via sounddevice
+2. **VAD gating** — Silero VAD detects speech boundaries so chunks split on natural pauses, not arbitrary time cuts
+3. **Transcribe** each chunk on the GPU — Cohere Transcribe processes a 2s chunk in ~4ms (525x real-time)
+4. **Display** results as they arrive, stitching transcript together with overlap deduplication
+5. **Result:** sub-200ms perceived latency that feels instant
+
+### VRAM Budget (16 GB GPU)
+
+| Model | ~VRAM (FP16) | Headroom |
+|-------|-------------|----------|
+| Cohere Transcribe 2B | ~4-5 GB | ~11 GB free |
+| NVIDIA Canary Qwen 2.5B | ~8 GB | ~8 GB free |
+| Qwen3-ASR 1.7B | ~3-4 GB | ~12 GB free |
+
+All three models fit comfortably. Enough headroom to keep two models loaded simultaneously for fast switching.
 
 ## Models
 
@@ -43,14 +64,15 @@ A GUI-based Windows desktop application for speech transcription powered by the 
 
 - **Language:** Python
 - **GUI Framework:** PyQt6
-- **Audio Processing:** PyAudio, sounddevice
+- **Audio Processing:** sounddevice
+- **VAD:** Silero VAD (silence/pause detection for clean chunk boundaries)
 - **Packaging:** PyInstaller (standalone Windows .exe)
 
 ## Requirements
 
 - Windows 10/11
 - Python 3.10+
-- NVIDIA GPU recommended (~8 GB VRAM for largest models, CPU fallback supported)
+- NVIDIA GPU with 16 GB VRAM (e.g. RTX 4060 Ti 16GB, RTX 4080/4090, RTX 3090)
 
 ## Getting Started
 
